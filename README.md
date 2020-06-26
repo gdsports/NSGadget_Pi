@@ -14,6 +14,10 @@ USB Controllers -> Raspberry Pi -> NSGadget -> Nintendo Switch
                   Buttons
 ```
 
+See [README_pinball.md](./README_pinball.md) for more details on this test configuration.
+
+![Pinball System](./images/pinball_system.jpg)
+
 ## USB Controllers
 
 The following USB controllers are supported. The drivers are all included so
