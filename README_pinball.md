@@ -39,7 +39,7 @@ The NS is not modified or hacked or rooted.
 ![Pinball controller made from cardboard box with arcade buttons](./images/pinball_controller.jpg)
 
 The prototype pinball controller is a cardboard box containing the USB joystick
-encoder board and seven arcade buttons.
+encoder board and nine arcade buttons.
 
 ## Software
 

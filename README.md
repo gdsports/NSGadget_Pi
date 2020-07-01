@@ -16,7 +16,11 @@ USB Controllers -> Raspberry Pi -> NSGadget -> Nintendo Switch
 
 See [README_pinball.md](./README_pinball.md) for more details on this test configuration.
 
-![Pinball System](./images/pinball_system.jpg)
+![Pinball System](./images/pinball_system_small.jpg)
+
+See [README_fs17.md](./README_fs17.md) for a custom Farming Simulator controller using a MIDI keyboard.
+
+![USB MIDI keyboard controlling Farming Simulator on Nintendo Switch](./images/farm_sim_midi_small.jpg)
 
 ## USB Controllers
 
