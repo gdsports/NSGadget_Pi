@@ -157,7 +157,7 @@ UART, it spins up a thread for each USB controller and a thread to monitor the
 buttons connected to GPIO pins.
 
 ```
-sudo apt install python3 python3-pip python3-serial python3-gpiozero
+sudo apt install python3 python3-pip python3-serial python3-gpiozero python3-mido
 git clone https://github.com/gdsports/NSGadget_Pi
 cd NSGadget_Pi
 ./nsac.py
