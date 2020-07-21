@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 """
 MIT License
 
@@ -22,10 +21,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-"""
-
-"""
-
+-----------------------------------------------------------------------------
 Adapt various USB joystick controllers for use with a Nintendo Switch (NS)
 console.  All controllers are active but are seen by the console as one
 controller so co-pilot mode is always active.
@@ -42,11 +38,11 @@ supported
 
 NSGadget is an Adafruit Trinket M0 emulating an NS compatible gamepad. The
 connection to between the Pi and NSGadget is 2 Mbits/sec UART.
-
 """
 import os
 import time
 import sys
+import signal
 import getopt
 from struct import unpack
 import threading
@@ -130,6 +126,75 @@ def read_horipad(jsdev):
                 elif number == 4:
                     NSG.dPadXAxis(axis)
                 elif number == 5:
+                    NSG.dPadYAxis(axis)
+
+def read_hori_wheel(jsdev):
+    """
+    The Hori Hori Maro Wheel is a Nintendo Switch compatible racing wheel.
+    Runs as a thread.
+    """
+    BUTTON_MAP = array.array('B', [
+        NSButton.A,
+        NSButton.B,
+        NSButton.X,
+        NSButton.Y,
+        NSButton.LEFT_TRIGGER,
+        NSButton.RIGHT_TRIGGER,
+        NSButton.MINUS,
+        NSButton.PLUS,
+        NSButton.HOME,
+        NSButton.LEFT_STICK,
+        NSButton.RIGHT_STICK])
+
+    last_left_throttle = 0
+    last_right_throttle = 0
+    last_wheel = 128
+    while True:
+        try:
+            evbuf = jsdev.read(8)
+        except:
+            jsdev.close()
+            break
+        if evbuf:
+            timestamp, value, type, number = unpack('IhBB', evbuf)
+            if type == 0x01: # button event
+                button_out = BUTTON_MAP[number]
+                if value:
+                    NSG.press(button_out)
+                else:
+                    NSG.release(button_out)
+
+            if type == 0x02: # axis event
+                axis = ((value + 32768) >> 8)
+                # Axes 0,1 left stick X,Y
+                if number == 0:
+                    if last_wheel != axis:
+                        NSG.leftXAxis(axis)
+                elif number == 1:
+                    NSG.leftYAxis(axis)
+                elif number == 2:
+                    if last_left_throttle != axis:
+                        last_left_throttle = axis
+                        if axis > 64:
+                            NSG.press(NSButton.LEFT_THROTTLE)
+                        else:
+                            NSG.release(NSButton.LEFT_THROTTLE)
+                # Axes 3,4 right stick X,Y
+                elif number == 3:
+                    NSG.rightXAxis(axis)
+                elif number == 4:
+                    NSG.rightYAxis(axis)
+                elif number == 5:
+                    if last_right_throttle != axis:
+                        last_right_throttle = axis
+                        if axis > 64:
+                            NSG.press(NSButton.RIGHT_THROTTLE)
+                        else:
+                            NSG.release(NSButton.RIGHT_THROTTLE)
+                # Axes 6,7 directional pad X,Y
+                elif number == 6:
+                    NSG.dPadXAxis(axis)
+                elif number == 7:
                     NSG.dPadYAxis(axis)
 
 def read_xbox1(jsdev):
@@ -533,135 +598,84 @@ def read_t16k(jsdev):
                 elif number == 5:
                     NSG.rightYAxis(axis)
 
-class GPIO_NS_Button:
-    """ Assign NS button to GPIO pin """
-    def __init__(self, gpio_number, ns_button):
-        self.ns_button = ns_button
-        self.gpio_number = gpio_number
-        self.button = Button(gpio_number)
-        self.pressed = self.button.is_pressed
-        self.rose_state = False
-        self.fell_state = False
-
-    def fell(self):
-        """ Return True if button was pressed else return False """
-        if self.fell_state:
-            self.fell_state = False
-            return True
-        return False
-
-    def rose(self):
-        """ Return True if button was released else return False """
-        if self.rose_state:
-            self.rose_state = False
-            return True
-        return False
-
-    def update(self):
-        """
-        Update button rose/fell state.
-        This tracks button transitions rather than the current state.
-        """
-        if self.button.is_pressed:
-            if not self.pressed:
-                self.fell_state = True
-            self.pressed = True
-        else:
-            if self.pressed:
-                self.rose_state = True
-            self.pressed = False
-
-
-class GPIO_NS_DPad:
-    """ Assign NS direction pad to GPIO pins """
-    def __init__(self, gpio_up, gpio_right, gpio_down, gpio_left):
+class DpadBits(object):
+    """ Convert 4 direction buttons to direction pad values """
+    def __init__(self):
         self.dpad_bits = 0
-        self.buttonup = Button(gpio_up)
-        self.buttonup.when_pressed = self.press_up
-        self.buttonup.when_released = self.release_up
 
-        self.buttonright = Button(gpio_right)
-        self.buttonright.when_pressed = self.press_right
-        self.buttonright.when_released = self.release_right
+    def set_bit(self, bit_num):
+        """ Set bit in direction pad bit map. Update NSGadget direction pad. """
+        self.dpad_bits |= (1 << bit_num)
+        return BUTTONS_MAP_DPAD[self.dpad_bits]
 
-        self.buttondown = Button(gpio_down)
-        self.buttondown.when_pressed = self.press_down
-        self.buttondown.when_released = self.release_down
-
-        self.buttonleft = Button(gpio_left)
-        self.buttonleft.when_pressed = self.press_left
-        self.buttonleft.when_released = self.release_left
-
-    def press_up(self):
-        """ dPad Up button pressed so update NS gadget dPad """
-        self.dpad_bits |= 1
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def release_up(self):
-        """ dPad Up button released so update NS gadget dPad """
-        self.dpad_bits &= ~1
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def press_right(self):
-        """ dPad Right button pressed so update NS gadget dPad """
-        self.dpad_bits |= (1 << 1)
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def release_right(self):
-        """ dPad Right button released so update NS gadget dPad """
-        self.dpad_bits &= ~(1 << 1)
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def press_down(self):
-        """ dPad Down button pressed so update NS gadget dPad """
-        self.dpad_bits |= (1 << 2)
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def release_down(self):
-        """ dPad Down button released so update NS gadget dPad """
-        self.dpad_bits &= ~(1 << 2)
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def press_left(self):
-        """ dPad Left button pressed so update NS gadget dPad """
-        self.dpad_bits |= (1 << 3)
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
-
-    def release_left(self):
-        """ dPad Left button released so update NS gadget dPad """
-        self.dpad_bits &= ~(1 << 3)
-        NSG.dPad(BUTTONS_MAP_DPAD[self.dpad_bits])
+    def clear_bit(self, bit_num):
+        """ Clear bit in direction pad bit map. Update NSGadget direction pad. """
+        self.dpad_bits &= ~(1 << bit_num)
+        return BUTTONS_MAP_DPAD[self.dpad_bits]
 
 def gpio_handler():
-    """ Map Raspberry Pi GPIO pins to NS buttons """
-    all_buttons = list()
-    # Left side (blue joy-con) buttons
-    all_buttons.append(GPIO_NS_Button(4, NSButton.LEFT_THROTTLE))
-    all_buttons.append(GPIO_NS_Button(17, NSButton.LEFT_TRIGGER))
-    all_buttons.append(GPIO_NS_Button(27, NSButton.MINUS))
-    all_buttons.append(GPIO_NS_Button(22, NSButton.CAPTURE))
-    GPIO_NS_DPad(5, 6, 13, 19)
-    all_buttons.append(GPIO_NS_Button(26, NSButton.LEFT_STICK))
+    """ Thread to handle buttons connected to GPIO pins. """
+    all_buttons = {}
+    dpad_bits = DpadBits()
 
-    # Right side (red joy-con) buttons
-    all_buttons.append(GPIO_NS_Button(23, NSButton.RIGHT_THROTTLE))
-    all_buttons.append(GPIO_NS_Button(24, NSButton.RIGHT_TRIGGER))
-    all_buttons.append(GPIO_NS_Button(25, NSButton.PLUS))
-    all_buttons.append(GPIO_NS_Button(8, NSButton.HOME))
-    all_buttons.append(GPIO_NS_Button(7, NSButton.A))
-    all_buttons.append(GPIO_NS_Button(12, NSButton.B))
-    all_buttons.append(GPIO_NS_Button(16, NSButton.X))
-    all_buttons.append(GPIO_NS_Button(20, NSButton.Y))
-    all_buttons.append(GPIO_NS_Button(21, NSButton.RIGHT_STICK))
+    def gpio_pressed(button):
+        """ Called when button connected to GPIO pin is pressed/closed """
+        print('pressed', button.pin)
+        if button.pin in all_buttons:
+            ns_button = all_buttons[button.pin]
+            if ns_button < 128:
+                NSG.press(ns_button)
+            else:
+                NSG.dPad(dpad_bits.set_bit(255 - ns_button))
+        else:
+            print('Invalid button');
 
-    while True:
-        for button in all_buttons:
-            button.update()
-            if button.fell():
-                NSG.press(button.ns_button)
-            if button.rose():
-                NSG.release(button.ns_button)
-            time.sleep(0.005)
+    def gpio_released(button):
+        """ Called when button connected to GPIO pin is released/opened """
+        print('released', button.pin)
+        if button.pin in all_buttons:
+            ns_button = all_buttons[button.pin]
+            if ns_button < 128:
+                NSG.release(ns_button)
+            else:
+                NSG.dPad(dpad_bits.clear_bit(255 - ns_button))
+        else:
+            print('Invalid button');
+
+    gpio_ns_map = (
+        # Left side (blue joy-con) buttons
+        {'gpio_number': 4, 'ns_button': NSButton.LEFT_THROTTLE},
+        {'gpio_number': 17, 'ns_button': NSButton.LEFT_TRIGGER},
+        {'gpio_number': 27, 'ns_button': NSButton.MINUS},
+        {'gpio_number': 22, 'ns_button': NSButton.CAPTURE},
+        {'gpio_number': 5, 'ns_button': 255},
+        {'gpio_number': 6, 'ns_button': 254},
+        {'gpio_number': 13, 'ns_button': 253},
+        {'gpio_number': 19, 'ns_button': 252},
+        {'gpio_number': 26, 'ns_button': NSButton.LEFT_STICK},
+
+        # Right side (red joy-con) buttons
+        {'gpio_number': 23, 'ns_button': NSButton.RIGHT_THROTTLE},
+        {'gpio_number': 24, 'ns_button': NSButton.RIGHT_TRIGGER},
+        {'gpio_number': 25, 'ns_button': NSButton.PLUS},
+        {'gpio_number': 8, 'ns_button': NSButton.HOME},
+        {'gpio_number': 7, 'ns_button': NSButton.A},
+        {'gpio_number': 12, 'ns_button': NSButton.B},
+        {'gpio_number': 16, 'ns_button': NSButton.X},
+        {'gpio_number': 20, 'ns_button': NSButton.Y},
+        {'gpio_number': 21, 'ns_button': NSButton.RIGHT_STICK}
+    )
+    # For each GPIO to NS button entry, allocate gpiozero Button object
+    # and update all_buttons dictionary. The when_pressed and when_released
+    # callback functions use all_buttons to find the corresponding
+    # NS button value.
+    for element in gpio_ns_map:
+        element['button'] = Button(element['gpio_number'])
+        all_buttons[element['button'].pin] = element['ns_button']
+        element['button'].when_pressed = gpio_pressed
+        element['button'].when_released = gpio_released
+
+    signal.pause()
 
 def read_midi_notes(midi_input_name, first_note):
     """
@@ -816,6 +830,11 @@ def main():
                     elif 'SONY INTERACTIVE ENTERTAINMENT WIRELESS CONTROLLER' in jslongname:
                         print("Found Sony PS4DS")
                         thr_id = threading.Thread(target=read_ps4ds, args=(jsdev,), daemon=True)
+                        thr_id.start()
+                        joysticks[jsname] = thr_id
+                    elif 'GENERIC X-BOX PAD' in jslongname:
+                        print("Found Hori Mario Wheel")
+                        thr_id = threading.Thread(target=read_hori_wheel, args=(jsdev,), daemon=True)
                         thr_id.start()
                         joysticks[jsname] = thr_id
                     else:
