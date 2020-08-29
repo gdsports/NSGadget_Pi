@@ -559,12 +559,12 @@ def read_t16k(jsdev):
         NSButton.PLUS,          # Base left 7
         NSButton.CAPTURE,       # Base left 8
         NSButton.HOME,          # Base left 9
-        NSButton.LEFT_THROTTLE, # Base right 10
-        NSButton.RIGHT_THROTTLE,# Base right 11
+        NSButton.LEFT_STICK,    # Base right 10
+        NSButton.RIGHT_STICK,   # Base right 11
         NSButton.LEFT_THROTTLE, # Base right 12
         NSButton.RIGHT_THROTTLE,# Base right 13
-        NSButton.LEFT_THROTTLE, # Base right 14
-        NSButton.RIGHT_THROTTLE])# Base right 15
+        14,                     # Base right 14
+        15)                     # Base right 15
 
     while True:
         try:
@@ -676,9 +676,116 @@ def gpio_handler():
 
     signal.pause()
 
+def read_speech():
+    """ Read text from speech to text engine (Deep Speech) """
+    COMMAND_DICT = {
+            'left and right': {'buttons': [NSButton.LEFT_TRIGGER, NSButton.RIGHT_TRIGGER]},
+            'left trigger': {'buttons': [NSButton.LEFT_TRIGGER]},
+            'left button': {'buttons': [NSButton.LEFT_TRIGGER]},
+            'right trigger': {'buttons': [NSButton.RIGHT_TRIGGER]},
+            'right button': {'buttons': [NSButton.RIGHT_TRIGGER]},
+            'left throttle': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'right throttle': {'buttons': [NSButton.RIGHT_THROTTLE]},
+            'plus': {'buttons': [NSButton.PLUS]},
+            'options': {'buttons': [NSButton.PLUS]},
+            'minus': {'buttons': [NSButton.MINUS]},
+            'capture': {'buttons': [NSButton.CAPTURE]},
+            'go home': {'buttons': [NSButton.HOME]},
+            'home': {'buttons': [NSButton.HOME]},
+            'okay': {'buttons': [NSButton.A]},
+            'continue': {'buttons': [NSButton.A]},
+            'confirm': {'buttons': [NSButton.A]},
+            'start': {'buttons': [NSButton.A]},
+            'back': {'buttons': [NSButton.B]},
+            'go back': {'buttons': [NSButton.B]},
+            'baker': {'buttons': [NSButton.B]},
+            'cancel': {'buttons': [NSButton.X]},
+            'close': {'buttons': [NSButton.X]},
+            'direction up': {'dpad': NSDPad.UP},
+            'direction down': {'dpad': NSDPad.DOWN},
+            'direction left': {'dpad': NSDPad.LEFT},
+            'direction right': {'dpad': NSDPad.RIGHT},
+            'move up': {'dpad': NSDPad.UP},
+            'move down': {'dpad': NSDPad.DOWN},
+            'move left': {'dpad': NSDPad.LEFT},
+            'move right': {'dpad': NSDPad.RIGHT},
+            # Pinball commands
+            'launch ball': {'buttons': [NSButton.A]},
+            # Zelda BOTW commands
+            'jump': {'buttons': [NSButton.X]},
+            'climb': {'buttons': [NSButton.X]},
+            'attack': {'buttons': [NSButton.Y]},
+            'fight': {'buttons': [NSButton.Y]},
+            'take': {'buttons': [NSButton.A]},
+            'crouch': {'buttons': [NSButton.LEFT_STICK]},
+            'crunch': {'buttons': [NSButton.LEFT_STICK]},
+            'zoom': {'buttons': [NSButton.RIGHT_STICK]},
+            'long distance': {'buttons': [NSButton.RIGHT_STICK]},
+            'look far': {'buttons': [NSButton.RIGHT_STICK]},
+            'use rune': {'buttons': [NSButton.LEFT_TRIGGER]},
+            'use spell': {'buttons': [NSButton.LEFT_TRIGGER]},
+            'use magic': {'buttons': [NSButton.LEFT_TRIGGER]},
+            'throw': {'buttons': [NSButton.RIGHT_TRIGGER]},
+            'switch shield': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.LEFT},
+            'switch weapon': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.RIGHT},
+            'switch magic': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.UP},
+            'which shield': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.LEFT},
+            'which weapon': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.RIGHT},
+            'which magic': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.UP},
+            'change shield': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.LEFT},
+            'change weapon': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.RIGHT},
+            'change magic': {'buttons': [NSButton.RIGHT_TRIGGER], 'dpad': NSDPad.UP},
+            'throw': {'buttons': [NSButton.RIGHT_TRIGGER]},
+            'center camera': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'enter camera': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'centre camera': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'camera': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'lock on': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'raise shield': {'buttons': [NSButton.LEFT_THROTTLE]},
+            'parry': {'buttons': [NSButton.LEFT_THROTTLE, NSButton.A]},
+            'perry': {'buttons': [NSButton.LEFT_THROTTLE, NSButton.A]},
+            'block': {'buttons': [NSButton.LEFT_THROTTLE, NSButton.A]},
+            'back flip': {'buttons': [NSButton.LEFT_THROTTLE, NSButton.X, NSButton.LEFT_TRIGGER]},
+            'shield surf': {'buttons': [NSButton.LEFT_THROTTLE, NSButton.X, NSButton.A]},
+            'use bow': {'buttons': [NSButton.RIGHT_THROTTLE]},
+            'whistle': {'dpad': NSDPad.DOWN},
+            'call horse': {'dpad': NSDPad.DOWN},
+            'called horse': {'dpad': NSDPad.DOWN},
+            'all horse': {'dpad': NSDPad.DOWN},
+            'horse': {'dpad': NSDPad.DOWN},
+            'a horse': {'dpad': NSDPad.DOWN},
+            'get horse': {'dpad': NSDPad.DOWN},
+            'get a horse': {'dpad': NSDPad.DOWN},
+            'open slate': {'buttons': [NSButton.MINUS]},
+            'pause': {'buttons': [NSButton.PLUS]}
+    }
+    for line in sys.stdin:
+        command = line.rstrip()
+        print(command)
+        if command in COMMAND_DICT:
+            controls = COMMAND_DICT[command]
+            print(controls)
+            if 'buttons' in controls:
+                for btn in controls['buttons']:
+                    print('press ', btn)
+                    NSG.press(btn)
+            if 'dpad' in controls:
+                print('dpad ', controls['dpad'])
+                NSG.dPad(controls['dpad'])
+            time.sleep(0.075)
+            if 'dpad' in controls:
+                print('dpad centered')
+                NSG.dPad(NSDPad.CENTERED)
+            if 'buttons' in controls:
+                for btn in reversed(controls['buttons']):
+                    print('release ', btn)
+                    NSG.release(btn)
+
 def main():
     """ joystick ioctl code based on https://gist.github.com/rdb/8864666 """
     threading.Thread(target=gpio_handler, args=(), daemon=True).start()
+    # Start thread that reads text from standard input.
+    threading.Thread(target=read_speech, args=(), daemon=True).start()
 
     dr_count = 0
     joysticks = {}
@@ -750,8 +857,6 @@ def main():
                     else:
                         jsdev.close()
 
-        if not joysticks:
-            print("No supported joysticks found!")
         time.sleep(0.1)
 
 if __name__ == "__main__":

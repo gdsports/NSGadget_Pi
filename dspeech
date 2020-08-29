@@ -1,0 +1,5 @@
+#!/bin/sh
+# Install DeepSpeech 0.8.2 using this guide:
+#   https://github.com/touchgadget/DeepSpeech
+DSPEECH="${HOME}/dspeech"
+python3 ./dspeech_mic.py --nospinner --device 1 -m ${DSPEECH}/deepspeech-0.8.2-models.tflite -s ${DSPEECH}/deepspeech-0.8.2-models.scorer

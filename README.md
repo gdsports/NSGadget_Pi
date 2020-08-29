@@ -26,6 +26,13 @@ See [README_gpio.md](./README_gpio.md) for a GPIO break out board.
 
 ![Pi2 with GPIO break out board](./images/pi2_gpio_small.jpg)
 
+See [README_voice.md](./README_voice.md) for adding a voice assistant. The
+Speech-To-Text engine Deep Speech works offline so no Internet connection is
+needed. This also eliminates privacy concerns with a live microphone. The
+audio is never sent outside the Raspberry Pi. Deep Speech needs a fast CPU
+so a Raspberry Pi 4 is best. A Pi 3+ is about half as fast so the delays
+are noticeable.
+
 ## USB Controllers
 
 The following USB controllers are supported. The drivers are all included so
@@ -82,7 +89,7 @@ sudo reboot
 
 ### Prepare /dev/ttyAMA0
 
-If the Pi has built-in bluetooth (Pi 3, Pi 3+, Pi 4, Pi zero W) disable
+If the Pi has built-in Bluetooth (Pi 3, Pi 3+, Pi 4, Pi zero W) disable
 Bluetooth to free up the PL011 UART.
 
 The following is from /boot/overlays/README.
@@ -138,7 +145,7 @@ nsgpadserial.py provides an interface to the NS Gadget device.
 
 If you do not want to login to run nsac.py and are not interested in changing
 it, try appliance mode. In appliance mode, nsac.py runs on power up. Also the
-filesystem is set for read-only mode so powering off without shutting down
+file system is set for read-only mode so powering off without shutting down
 should not corrupt the microSD card.
 
 ### Automatically run nsac.py
