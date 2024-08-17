@@ -564,7 +564,7 @@ def read_t16k(jsdev):
         NSButton.LEFT_THROTTLE, # Base right 12
         NSButton.RIGHT_THROTTLE,# Base right 13
         14,                     # Base right 14
-        15)                     # Base right 15
+        15])                    # Base right 15
 
     while True:
         try:
